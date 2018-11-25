@@ -11,8 +11,11 @@ import pandas as pd
 from sklearn.ensemble import RandomForestClassifier,RandomForestRegressor
 from sklearn.externals import joblib
 import os
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 
 from . import utils
+
 
 def split_traintest(data,proportion):
     """
@@ -63,20 +66,36 @@ def trainRFreco(train,features):
     
     
     max_depth = 50
-    regr_rf_e = RandomForestRegressor(max_depth=max_depth,
-                                      min_samples_leaf=50,
-                                      n_jobs=4,
-                                      n_estimators=50)
+    # regr_rf_e = RandomForestRegressor(max_depth=max_depth,
+    #                                   min_samples_leaf=50,
+    #                                   n_jobs=4,
+    #                                   n_estimators=50)
+
+    regr_rf_e = Pipeline([('scl', StandardScaler()),
+              ('clf', RandomForestRegressor(random_state=42,
+                            max_depth=max_depth,
+                            min_samples_leaf=50,
+                            n_jobs=4,
+                            n_estimators=50))])
+
     regr_rf_e.fit(train[features],
                   train['mc_energy'])
     
     print("Random Forest trained!")    
     print("Training Random Forest Regressor for disp Reconstruction...")
-    
-    regr_rf_disp = RandomForestRegressor(max_depth=max_depth,
-                                         min_samples_leaf=50,
-                                         n_jobs=4,
-                                         n_estimators=50)    
+
+    # regr_rf_disp = RandomForestRegressor(max_depth=max_depth,
+    #                                      min_samples_leaf=50,
+    #                                      n_jobs=4,
+    #                                      n_estimators=50)
+
+    regr_rf_disp = Pipeline([('scl', StandardScaler()),
+              ('clf', RandomForestRegressor(random_state=42,
+                            max_depth=max_depth,
+                            min_samples_leaf=50,
+                            n_jobs=4,
+                            n_estimators=50))])
+
     regr_rf_disp.fit(train[features],
                      train['disp'])
     
@@ -105,11 +124,18 @@ def trainRFsep(train,features):
     print("Number of events for training: ",train.shape[0])
     print("Training Random Forest Classifier for",
     "Gamma/Hadron separation...")
-    
-    clf = RandomForestClassifier(max_depth = 50,
-                                 n_jobs=4,
-                                 min_samples_leaf=50,
-                                 n_estimators=100)
+
+    clf = Pipeline([('scl', StandardScaler()),
+              ('clf', RandomForestClassifier(random_state=42,
+                            max_depth=50,
+                            min_samples_leaf=50,
+                            n_jobs=4,
+                            n_estimators=100))])
+
+    # clf = RandomForestClassifier(max_depth = 50,
+    #                              n_jobs=4,
+    #                              min_samples_leaf=50,
+    #                              n_estimators=100)
     
     clf.fit(train[features],
             train['hadroness'])
