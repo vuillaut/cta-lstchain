@@ -7,9 +7,10 @@ setuptools.setup(name='lstchain',
       version=0.1,
       description="DESCRIPTION",
       # these should be minimum list of what is needed to run
-      install_requires=[],
       packages=setuptools.find_packages(),
-                 tests_require=['pytest'],
+      install_requires=['h5py', 'seaborn'
+                        ],
+      tests_require=['pytest'],
       author='LST collaboration',
       author_email='',
       license='',

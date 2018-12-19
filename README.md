@@ -6,9 +6,16 @@ The analysis is heavily based on [ctapipe](https://github.com/cta-observatory/ct
 
 ## Install
 
+If you are a user and don't already have ctapipe installed:
 ```
-conda env create --file environment.yml
-source activate cta-dev
+conda env create -f environment.yml
+source activate cta
+```
+This will create a conda environment called `cta` and install ctapipe with all dependencies.
+
+Then you can install the `lstchain` in this environment with:
+
+```
 python setup.py install
 ```
 
