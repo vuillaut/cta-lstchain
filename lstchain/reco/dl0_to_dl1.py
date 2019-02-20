@@ -9,7 +9,7 @@ Usage:
 
 """
 import numpy as np
-from ctapipe.image import hillas_parameters, hillas_parameters_2, tailcuts_clean
+from ctapipe.image import hillas_parameters, tailcuts_clean
 from ctapipe.io.eventsourcefactory import EventSourceFactory
 from ctapipe.image.charge_extractors import LocalPeakIntegrator
 from ctapipe.image import timing_parameters as time
@@ -223,7 +223,7 @@ def get_events(filename, storedata=False, test=False,
                 'intercept',
                 'src_x',
                 'src_y',
-                'disp',
+                'disp_norm',
                 'hadroness',
                 ]
     
@@ -387,8 +387,7 @@ def get_events(filename, storedata=False, test=False,
                                                               focal_length) 
                 src_x = sourcepos[0]
                 src_y = sourcepos[1]
-                disp = utils.calc_disp(sourcepos[0],sourcepos[1],
-                                                 x,y)
+                disp = utils.disp_norm(sourcepos[0], sourcepos[1], x, y)
                 
                 hadroness = 0
                 if particle_type=='proton':
