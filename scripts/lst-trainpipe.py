@@ -47,7 +47,7 @@ if __name__ == '__main__':
     #Train the models
 
     features = ['intensity',
-                'time_gradient',
+                # 'time_gradient',
                 'width',
                 'length',
                 'wl',

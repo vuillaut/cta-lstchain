@@ -22,10 +22,13 @@ import pyhessio
 import pandas as pd
 import astropy.units as units
 import h5py
+import os
 
 from . import utils
 from ..calib.calib import lst_calibration
 from ..io.containers import DL1ParametersContainer
+from hipecta.image import get_hillas_parameters_container
+from hipecta.image import TelescopeReco
 
 
 ### PARAMETERS - TODO: use a yaml config file
@@ -43,6 +46,8 @@ cleaning_parameters = {'boundary_thresh': 3,
                        'keep_isolated_pixels': False,
                        'min_number_picture_neighbors': 1
                        }
+
+reco = TelescopeReco(wavelet_threshold=1, hillas_threshold_signal_tel=50)
 
 channel = 0
 
@@ -154,6 +159,65 @@ def r0_to_dl1(input_filename=get_dataset_path('gamma_test_large.simtel.gz'), out
                     if w>=0:
                         writer.write(camera.cam_id, [dl1_container])
 
+
+
+def hipecta_r0_to_dl1(input_filename=get_dataset_path('gamma_test_large.simtel.gz'), outdir='dl1_data/'):
+    """
+    Chain r0 to dl1
+    Save the extracted dl1 parameters in output_filename
+
+    Parameters
+    ----------
+    reco: hipecta.image.TelescopeReco
+    input_filename: str - path to input file, default: `gamma_test_large.simtel.gz`
+    output_filename: str - path to output file, default: `./` + basename(input_filename)
+
+    Returns
+    -------
+
+    """
+    output_filename = outdir + '/dl1_' + os.path.basename(input_filename).split('.')[0] + '.h5'
+
+    source = event_source(input_filename)
+    source.allowed_tels = allowed_tels
+    source.max_events = max_events
+
+    dl1_container = DL1ParametersContainer()
+
+    with HDF5TableWriter(filename=output_filename, group_name='events', overwrite=True) as writer:
+
+        for i, event in enumerate(source):
+            if i%100==0: print(i)
+
+            for ii, telescope_id in enumerate(event.r0.tels_with_data):
+                camera = event.inst.subarray.tel[telescope_id].camera  # Camera geometry
+
+                tabHillas, isGoodEvent = reco.process(telescope_id, event, True)
+
+                if isGoodEvent:
+                    hillas = get_hillas_parameters_container(tabHillas)
+                    particle_name = utils.guess_type(input_filename)
+
+                    # Some custom def
+                    dl1_container.mc_type = utils.particle_number(particle_name)
+                    dl1_container.hadroness = dl1_container.mc_type
+                    dl1_container.fill_hillas(hillas)
+                    dl1_container.set_mc_core_distance(event, telescope_id)
+                    dl1_container.set_source_camera_position(event, telescope_id)
+                    dl1_container.set_disp([dl1_container.src_x, dl1_container.src_y], hillas)
+                    dl1_container.wl = dl1_container.width / dl1_container.length
+                    dl1_container.mc_energy = np.log10(event.mc.energy.value * 1e3)  # Log10(Energy) in GeV
+                    dl1_container.intensity = np.log10(dl1_container.intensity)
+                    dl1_container.gps_time = event.trig.gps_time.value
+
+                    foclen = event.inst.subarray.tel[telescope_id].optics.equivalent_focal_length
+                    w = np.rad2deg(np.arctan2(dl1_container.width, foclen))
+                    l = np.rad2deg(np.arctan2(dl1_container.length, foclen))
+                    dl1_container.width = w.value
+                    dl1_container.length = l.value
+
+                    if w >= 0:
+                        writer.write(camera.cam_id, [dl1_container])
 
     
 def get_events(filename, storedata=False, test=False,
