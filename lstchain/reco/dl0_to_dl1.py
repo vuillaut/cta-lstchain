@@ -221,6 +221,44 @@ def dl1dh_to_dl1(input_filename, output_filename=None):
     source.allowed_tels = allowed_tels
     source.max_events = max_events
 
+    event = next(iter(source))
+
+    sub = event.inst.subarray
+    sub.to_table().write(
+        output_filename,
+        path="/instrument/subarray/layout",
+        serialize_meta=serialize_meta,
+        overwrite=True
+    )
+
+    sub.to_table(kind='optics').write(
+        output_filename,
+        path='/instrument/telescope/optics',
+        append=True,
+        serialize_meta=serialize_meta
+    )
+    for telescope_type in sub.telescope_types:
+        ids = set(sub.get_tel_ids_for_type(telescope_type)).intersection(allowed_tels)
+        if len(ids) > 0:  # only write if there is a telescope with this camera
+            tel_id = list(ids)[0]
+            camera = sub.tel[tel_id].camera
+            camera.to_table().write(
+                output_filename,
+                path=f'/instrument/telescope/camera/{camera}',
+                append=True,
+                serialize_meta=serialize_meta,
+            )
+
+
+    with HDF5TableWriter(
+        filename=output_filename,
+        group_name='header',
+        mode='a',
+        overwrite=True,
+    ) as writer:
+        writer.write('mc', event.mcheader)
+
+
     dl1_container = DL1ParametersContainer()
 
     with HDF5TableWriter(
