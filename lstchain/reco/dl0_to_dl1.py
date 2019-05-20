@@ -38,6 +38,8 @@ from ctapipe.image.extractor import NeighborPeakWindowSum
 
 allowed_tels = {1, 2, 3, 4}  # select LST1 only
 max_events = None  # limit the number of events to analyse in files - None if no limit
+serialize_meta = False  # should be true to keep all metadata, but it adds some extra tables
+
 
 threshold = 4094
 
