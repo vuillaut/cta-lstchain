@@ -266,7 +266,8 @@ def dl1dh_to_dl1(input_filename, output_filename=None):
     with HDF5TableWriter(
         filename=output_filename,
         group_name='events',
-        overwrite=True
+        mode='a',
+        overwrite=False,
     ) as writer:
 
         for i, event in enumerate(source):
@@ -301,10 +302,10 @@ def dl1dh_to_dl1(input_filename, output_filename=None):
                     dl1_container.width = width.value
                     dl1_container.length = length.value
 
-                    if width >= 0:
+                    # if width >= 0:
                         # Camera geometry
-                        camera = event.inst.subarray.tel[telescope_id].camera
-                        writer.write(camera.cam_id, [dl1_container])
+                    camera = event.inst.subarray.tel[telescope_id].camera
+                    writer.write(camera.cam_id, [dl1_container])
 
 
 def get_events(filename, storedata=False, test=False,
