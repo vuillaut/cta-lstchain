@@ -22,13 +22,36 @@ threshold = 4094
 custom = False
 
 cal = CameraCalibrator(image_extractor=NeighborPeakWindowSum())
+serialize_meta = False
 
 
 
 
 
+def r0_to_dl2(input_filename, features, e_reg, disp_reg, gh_cls, multi_gammalearn_model, output_filename=None):
+    """
 
-def r0_to_dl2(input_filename, features, e_reg, disp_reg, gh_cls, gammalearn_model, output_filename=None):
+    Parameters
+    ----------
+    input_filename
+    features
+    e_reg
+    disp_reg
+    gh_cls
+    multi_gammalearn_model: end-to-end multitask model
+        predict:
+            - energy (in log(E/TeV))
+            - xCore (in km)
+            - yCore (in km)
+            - altitude (in rad)
+            - azimuth (in rad)
+            - particle type
+    output_filename
+
+    Returns
+    -------
+
+    """
     if output_filename is None:
         output_filename = (
                 'dl1_' + os.path.basename(input_filename).split('.')[0] + '.h5'
@@ -41,7 +64,50 @@ def r0_to_dl2(input_filename, features, e_reg, disp_reg, gh_cls, gammalearn_mode
     dl1_container = DL1ParametersContainer()
     dl1_container.prefix = ''
 
-    with HDF5TableWriter(filename=output_filename, group_name='events', overwrite=True, add_prefix=True) as writer:
+
+    event = next(iter(source))
+
+    sub = event.inst.subarray
+    sub.to_table().write(
+        output_filename,
+        path="/instrument/subarray/layout",
+        serialize_meta=serialize_meta,
+        overwrite=True
+    )
+
+    sub.to_table(kind='optics').write(
+        output_filename,
+        path='/instrument/telescope/optics',
+        append=True,
+        serialize_meta=serialize_meta
+    )
+    for telescope_type in sub.telescope_types:
+        ids = set(sub.get_tel_ids_for_type(telescope_type)).intersection(allowed_tels)
+        if len(ids) > 0:  # only write if there is a telescope with this camera
+            tel_id = list(ids)[0]
+            camera = sub.tel[tel_id].camera
+            camera.to_table().write(
+                output_filename,
+                path=f'/instrument/telescope/camera/{camera}',
+                append=True,
+                serialize_meta=serialize_meta,
+            )
+
+
+    with HDF5TableWriter(
+        filename=output_filename,
+        group_name='header',
+        mode='a',
+        overwrite=True,
+    ) as writer:
+        writer.write('mc', event.mcheader)
+
+
+
+    with HDF5TableWriter(filename=output_filename, group_name='events',
+                         overwrite=True, mode='a',
+                         add_prefix=True,
+                         ) as writer:
         for i, event in enumerate(source):
             cal(event)
             for ii, telescope_id in enumerate(event.r0.tels_with_data):
@@ -109,9 +175,9 @@ def r0_to_dl2(input_filename, features, e_reg, disp_reg, gh_cls, gammalearn_mode
                     peakpos = event.dl1.tel[telescope_id].pulse_time[0]
 
                     data = torch.tensor([image, peakpos], dtype=torch.float).unsqueeze(0)
-                    prediction = regression_network(data).squeeze(0).detach().numpy()
-                    particle_prediction = classification_network(data)
-                    particle = torch.max(particle_prediction, 1)[1]
+                    prediction = multi_gammalearn_model(data).squeeze(0).detach().numpy()
+                    # particle_prediction = multi_gammalearn_model(data)
+                    # particle = torch.max(particle_prediction, 1)[1]
 
                     event.dl2.energy['gl'].prefix = 'gl'
                     event.dl2.shower['gl'].prefix = 'gl'
@@ -121,7 +187,7 @@ def r0_to_dl2(input_filename, features, e_reg, disp_reg, gh_cls, gammalearn_mode
                     event.dl2.shower['gl'].core_y = prediction[2] * u.km
                     event.dl2.shower['gl'].alt = prediction[3] * u.rad
                     event.dl2.shower['gl'].az = prediction[4] * u.rad
-                    event.dl2.classification['gl'].prediction = particle.item()
+                    event.dl2.classification['gl'].prediction = prediction[5]
 
                     camera = event.inst.subarray.tel[telescope_id].camera
                     writer.write(camera.cam_id, [dl1_container,
