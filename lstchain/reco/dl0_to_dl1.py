@@ -45,6 +45,8 @@ __all__ = [
 
 allowed_tels = {1, 2, 3, 4}  # select LST1 only
 max_events = None  # limit the number of events to analyse in files - None if no limit
+serialize_meta = False  # should be true to keep all metadata, but it adds some extra tables
+
 
 threshold = 4094
 
@@ -84,13 +86,13 @@ def get_dl1(calibrated_event, telescope_id, dl1_container=None):
     dl1 = calibrated_event.dl1.tel[telescope_id]
     camera = tel.camera
 
-    waveform = calibrated_event.r0.tel[telescope_id].waveform
-    image = dl1.image
-    pulse_time = dl1.pulse_time
+    # waveform = calibrated_event.r0.tel[telescope_id].waveform
+    image = dl1.image[0]
+    pulse_time = dl1.pulse_time[0]
 
-    image, pulse_time = gain_selection(
-        waveform, image, pulse_time, camera.cam_id, threshold
-    )
+    # image, pulse_time = gain_selection(
+    #     waveform, image, pulse_time, camera.cam_id, threshold
+    # )
 
     signal_pixels = cleaning_method(camera, image,
                                     **cleaning_parameters)
@@ -197,6 +199,120 @@ def r0_to_dl1(
                         # Camera geometry
                         camera = event.inst.subarray.tel[telescope_id].camera
                         writer.write(camera.cam_id, [dl1_container])
+
+
+def dl1dh_to_dl1(input_filename, output_filename=None):
+    """
+    Chain to reduce DL1 files from dl1_data_handler to dl1 parameters
+    Save the extracted dl1 parameters in output_filename
+
+    Parameters
+    ----------
+    input_filename: str
+        path to input file
+    output_filename: str
+        path to output file, default: `./` + basename(input_filename)
+
+    Returns
+    -------
+
+    """
+    if output_filename is None:
+        output_filename = (
+            'dl1_' + os.path.basename(input_filename).split('.')[0] + '.h5'
+        )
+
+    # from dl1_data_handler.dl1dheventsource import DL1DHEventSource
+
+    # source = DL1DHEventSource(input_url='/Users/thomasvuillaume/Work/CTA/Data/LST1/DL1_data/output_file_1.h5')
+    source = event_source(input_filename)
+
+    source.allowed_tels = allowed_tels
+    source.max_events = max_events
+
+    event = next(iter(source))
+
+    sub = event.inst.subarray
+    sub.to_table().write(
+        output_filename,
+        path="/instrument/subarray/layout",
+        serialize_meta=serialize_meta,
+        overwrite=True
+    )
+
+    sub.to_table(kind='optics').write(
+        output_filename,
+        path='/instrument/telescope/optics',
+        append=True,
+        serialize_meta=serialize_meta
+    )
+    for telescope_type in sub.telescope_types:
+        ids = set(sub.get_tel_ids_for_type(telescope_type)).intersection(allowed_tels)
+        if len(ids) > 0:  # only write if there is a telescope with this camera
+            tel_id = list(ids)[0]
+            camera = sub.tel[tel_id].camera
+            camera.to_table().write(
+                output_filename,
+                path=f'/instrument/telescope/camera/{camera}',
+                append=True,
+                serialize_meta=serialize_meta,
+            )
+
+
+    with HDF5TableWriter(
+        filename=output_filename,
+        group_name='header',
+        mode='a',
+        overwrite=True,
+    ) as writer:
+        writer.write('mc', event.mcheader)
+
+
+    dl1_container = DL1ParametersContainer()
+
+    with HDF5TableWriter(
+        filename=output_filename,
+        group_name='events',
+        mode='a',
+        overwrite=False,
+    ) as writer:
+
+        for i, event in enumerate(source):
+            if i % 100 == 0:
+                print(i)
+
+            for ii, telescope_id in enumerate(event.r0.tels_with_data):
+                try:
+                    dl1_filled = get_dl1(event, telescope_id, dl1_container=dl1_container)
+
+                except HillasParameterizationError:
+                    logging.exception(
+                        'HillasParameterizationError in get_dl1()'
+                    )
+                    continue
+
+                if dl1_filled is not None:
+
+                    # Some custom def
+                    dl1_container.wl = dl1_container.width / dl1_container.length
+                    # Log10(Energy) in GeV
+                    dl1_container.mc_energy = np.log10(event.mc.energy.value * 1e3)
+                    dl1_container.intensity = np.log10(dl1_container.intensity)
+                    dl1_container.gps_time = event.trig.gps_time.value
+
+                    foclen = (
+                        event.inst.subarray.tel[telescope_id]
+                        .optics.equivalent_focal_length
+                    )
+                    width = np.rad2deg(np.arctan2(dl1_container.width, foclen))
+                    length = np.rad2deg(np.arctan2(dl1_container.length, foclen))
+                    dl1_container.width = width.value
+                    dl1_container.length = length.value
+
+                    # if width >= 0:
+                        # Camera geometry
+                    camera = event.inst.subarray.tel[telescope_id].camera
+                    writer.write(camera.cam_id, [dl1_container])
 
 
 def get_events(filename, storedata=False, test=False,
