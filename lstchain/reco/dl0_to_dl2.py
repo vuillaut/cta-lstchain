@@ -113,6 +113,9 @@ def r0_to_dl2(input_filename, features, e_reg, disp_reg, gh_cls, multi_gammalear
             for ii, telescope_id in enumerate(event.r0.tels_with_data):
 
                 dl1_filled = get_dl1(event, telescope_id, dl1_container=dl1_container)
+
+
+
                 if dl1_filled is not None:
 
                     # Some custom def
@@ -179,24 +182,38 @@ def r0_to_dl2(input_filename, features, e_reg, disp_reg, gh_cls, multi_gammalear
                     # particle_prediction = multi_gammalearn_model(data)
                     # particle = torch.max(particle_prediction, 1)[1]
 
-                    event.dl2.energy['gl'].prefix = 'gl'
-                    event.dl2.shower['gl'].prefix = 'gl'
-                    event.dl2.classification['gl'].prefix = 'gl'
-                    event.dl2.energy['gl'].energy = 10 ** prediction[0] * u.TeV
-                    event.dl2.shower['gl'].core_x = prediction[1] * u.km
-                    event.dl2.shower['gl'].core_y = prediction[2] * u.km
-                    event.dl2.shower['gl'].alt = prediction[3] * u.rad
-                    event.dl2.shower['gl'].az = prediction[4] * u.rad
-                    event.dl2.classification['gl'].prediction = prediction[5]
+                else:
+                    dl1_container = DL1ParametersContainer()
+                    dl1_container.prefix = ''
+                    dl1_container.fill_mc(event)
+                    dl1_container.fill_event_info(event)
+                    dl1_container.set_mc_core_distance(event, telescope_id)
+                    dl1_container.set_mc_type(event)
+                    dl1_container.set_source_camera_position(
+                        event, telescope_id)
+                    dl1_container.set_telescope_info(event, telescope_id)
 
-                    camera = event.inst.subarray.tel[telescope_id].camera
-                    writer.write(camera.cam_id, [dl1_container,
-                                                 event.dl2.energy['lstchain'],
-                                                 event.dl2.shower['lstchain'],
-                                                 event.dl2.classification['lstchain'],
-                                                 event.dl2.energy['gl'],
-                                                 event.dl2.shower['gl'],
-                                                 event.dl2.classification['gl'],
-                                                 ])
+
+
+                event.dl2.energy['gl'].prefix = 'gl'
+                event.dl2.shower['gl'].prefix = 'gl'
+                event.dl2.classification['gl'].prefix = 'gl'
+                event.dl2.energy['gl'].energy = 10 ** prediction[0] * u.TeV
+                event.dl2.shower['gl'].core_x = prediction[1] * u.km
+                event.dl2.shower['gl'].core_y = prediction[2] * u.km
+                event.dl2.shower['gl'].alt = prediction[3] * u.rad
+                event.dl2.shower['gl'].az = prediction[4] * u.rad
+                event.dl2.classification['gl'].prediction = prediction[5]
+
+                camera = event.inst.subarray.tel[telescope_id].camera
+                writer.write(camera.cam_id, [dl1_container,
+                                             event.dl2.energy['lstchain'],
+                                             event.dl2.shower['lstchain'],
+                                             event.dl2.classification['lstchain'],
+                                             event.dl2.energy['gl'],
+                                             event.dl2.shower['gl'],
+                                             event.dl2.classification['gl'],
+                                             ])
+
 
 
