@@ -169,20 +169,8 @@ def r0_to_dl2(input_filename, features, e_reg, disp_reg, gh_cls, multi_gammalear
                     else:
                         is_lstchain_valid = False
 
-                    event.dl2.energy['lstchain'].is_valid = is_lstchain_valid
-                    event.dl2.classification['lstchain'].is_valid = is_lstchain_valid
-                    event.dl2.shower['lstchain'].is_valid = is_lstchain_valid
-
-                    ## GammaLearn
-                    image = event.dl1.tel[telescope_id].image[0]
-                    peakpos = event.dl1.tel[telescope_id].pulse_time[0]
-
-                    data = torch.tensor([image, peakpos], dtype=torch.float).unsqueeze(0)
-                    prediction = multi_gammalearn_model(data).squeeze(0).detach().numpy()
-                    # particle_prediction = multi_gammalearn_model(data)
-                    # particle = torch.max(particle_prediction, 1)[1]
-
                 else:
+                    is_lstchain_valid = False
                     dl1_container = DL1ParametersContainer()
                     dl1_container.prefix = ''
                     dl1_container.fill_mc(event)
@@ -193,8 +181,18 @@ def r0_to_dl2(input_filename, features, e_reg, disp_reg, gh_cls, multi_gammalear
                         event, telescope_id)
                     dl1_container.set_telescope_info(event, telescope_id)
 
+                event.dl2.energy['lstchain'].is_valid = is_lstchain_valid
+                event.dl2.classification['lstchain'].is_valid = is_lstchain_valid
+                event.dl2.shower['lstchain'].is_valid = is_lstchain_valid
 
+                ## GammaLearn
+                image = event.dl1.tel[telescope_id].image[0]
+                peakpos = event.dl1.tel[telescope_id].pulse_time[0]
 
+                data = torch.tensor([image, peakpos], dtype=torch.float).unsqueeze(0)
+                prediction = multi_gammalearn_model(data).squeeze(0).detach().numpy()
+                # particle_prediction = multi_gammalearn_model(data)
+                # particle = torch.max(particle_prediction, 1)[1]
                 event.dl2.energy['gl'].prefix = 'gl'
                 event.dl2.shower['gl'].prefix = 'gl'
                 event.dl2.classification['gl'].prefix = 'gl'
