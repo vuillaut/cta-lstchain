@@ -94,8 +94,7 @@ def get_dl1(calibrated_event, telescope_id, dl1_container=None):
     #     waveform, image, pulse_time, camera.cam_id, threshold
     # )
 
-    signal_pixels = cleaning_method(camera, image,
-                                    **cleaning_parameters)
+    signal_pixels = cleaning_method(camera, image, **cleaning_parameters)
     image[~signal_pixels] = 0
 
     if image.sum() > 0:
@@ -109,12 +108,8 @@ def get_dl1(calibrated_event, telescope_id, dl1_container=None):
         dl1_container.set_timing_features(camera, image, pulse_time, hillas)
         dl1_container.set_leakage(camera, image, signal_pixels)
         dl1_container.set_n_islands(camera, signal_pixels)
-        dl1_container.set_source_camera_position(
-            calibrated_event, telescope_id)
-        dl1_container.set_disp(
-            [dl1_container.src_x, dl1_container.src_y],
-            hillas
-        )
+        dl1_container.set_source_camera_position(calibrated_event, telescope_id)
+        dl1_container.set_disp([dl1_container.src_x, dl1_container.src_y], hillas)
         dl1_container.set_telescope_info(calibrated_event, telescope_id)
 
         return dl1_container
@@ -156,7 +151,8 @@ def r0_to_dl1(
     with HDF5TableWriter(
         filename=output_filename,
         group_name='events',
-        overwrite=True
+        overwrite=True,
+        mode='a',
     ) as writer:
 
         for i, event in enumerate(source):

@@ -20,6 +20,7 @@ if __name__ == '__main__':
     os.makedirs(args.outdir, exist_ok=True)
 
     dl0_to_dl1.allowed_tels = {1, 2, 3, 4}
+    dl0_to_dl1.max_events = 10
     output_filename = args.outdir + '/dl1_' + os.path.basename(args.infile).rsplit('.', 1)[0] + '.h5'
 
     dl0_to_dl1.dl1dh_to_dl1(args.infile, output_filename=output_filename)
