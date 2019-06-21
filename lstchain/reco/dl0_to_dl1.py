@@ -39,12 +39,6 @@ __all__ = [
     'get_events',
 ]
 
-from ctapipe.io.containers import Container, Field
-class Image(Container):
-    image = Field(None)
-    pulse = Field(None)
-
-
 ### PARAMETERS - TODO: use a yaml config file
 
 
@@ -91,13 +85,11 @@ def get_dl1(calibrated_event, telescope_id, dl1_container=None):
     dl1 = calibrated_event.dl1.tel[telescope_id]
     camera = tel.camera
 
-    # waveform = calibrated_event.r0.tel[telescope_id].waveform
+    waveform = calibrated_event.r0.tel[telescope_id].waveform
     image = dl1.image[0]
     pulse_time = dl1.pulse_time[0]
 
-    # image, pulse_time = gain_selection(
-    #     waveform, image, pulse_time, camera.cam_id, threshold
-    # )
+    image, pulse_time = gain_selection(waveform, image, pulse_time, threshold)
 
     signal_pixels = cleaning_method(camera, image, **cleaning_parameters)
     image[~signal_pixels] = 0
@@ -198,15 +190,12 @@ def r0_to_dl1(
                     dl1_container.width = width.value
                     dl1_container.length = length.value
 
-                    image_container.image = event.dl1.tel[telescope_id].image
-                    image_container.pulse = event.dl1.tel[telescope_id].pulse_time
-
                     if width >= 0:
                         # Camera geometry
                         camera = event.inst.subarray.tel[telescope_id].camera
                         writer.write(camera.cam_id, [dl1_container])
                         writer.write(camera.cam_id + '_images', [event.dl1.tel[telescope_id]])
-                        # writer.write(os.path.join(camera.cam_id, '_pulse'), [event.dl1.tel[telescope_id].pulse_time])
+
 
     with HDF5TableWriter(filename=output_filename, group_name="simulation", mode="a") as writer:
         writer.write("run_config", [event.mcheader])
