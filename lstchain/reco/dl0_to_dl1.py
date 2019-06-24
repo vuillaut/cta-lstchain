@@ -86,8 +86,8 @@ def get_dl1(calibrated_event, telescope_id, dl1_container=None):
     camera = tel.camera
 
     waveform = calibrated_event.r0.tel[telescope_id].waveform
-    image = dl1.image[0]
-    pulse_time = dl1.pulse_time[0]
+    image = dl1.image
+    pulse_time = dl1.pulse_time
 
     image, pulse_time = gain_selection(waveform, image, pulse_time, threshold)
 
@@ -145,8 +145,6 @@ def r0_to_dl1(
 
     dl1_container = DL1ParametersContainer()
 
-    image_container = Image()
-
     with HDF5TableWriter(
         filename=output_filename,
         group_name='events',
@@ -189,6 +187,14 @@ def r0_to_dl1(
                     length = np.rad2deg(np.arctan2(dl1_container.length, foclen))
                     dl1_container.width = width.value
                     dl1_container.length = length.value
+
+                    waveform = event.r0.tel[telescope_id].waveform
+                    image = event.dl1.tel[telescope_id].image
+                    pulse_time = event.dl1.tel[telescope_id].pulse_time
+
+                    image, pulse_time = gain_selection(waveform, image, pulse_time, threshold)
+                    event.dl1.tel[telescope_id].image = image
+                    event.dl1.tel[telescope_id].pulse_time = pulse_time
 
                     if width >= 0:
                         # Camera geometry
