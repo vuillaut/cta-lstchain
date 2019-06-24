@@ -6,7 +6,6 @@ Usage:
 
 "import dl1_to_dl2"
 """
-from typing import Dict
 
 import numpy as np
 import pandas as pd
@@ -17,6 +16,13 @@ import os
 from . import utils
 from astropy.utils import deprecated
 from ..io import read_configuration_file
+
+import sys
+import lstchain
+sys.path.insert(0, os.path.dirname(os.path.dirname(lstchain.__file__)))
+from utils.gammalearn import load_model
+import torch
+from tables import open_file
 
 
 __all__ = [
@@ -497,6 +503,69 @@ def apply_models(dl1, features, classifier, reg_energy, reg_disp_vector):
     dl2['reco_type'] = classifier.predict(dl2[features_]).astype(int)
     probs = classifier.predict_proba(dl2[features_])[0:,0]
     dl2['gammaness'] = probs
+    return dl2
+
+
+def gammalearn_reco(dl1_filename, gl_exp_path, gl_exp_name, gl_checkpoint, camera_model_path, dl2=None):
+    """
+    Reconstruct dl1 calibrated images in dl1_filename and dump the reconstructed physical parameters in a pandas dataframe
+
+    Parameters
+    ----------
+    dl1_filename: path
+    gl_exp_path: path
+    gl_exp_name: string
+    gl_checkpoint: string
+    camera_model_path: path
+    dl2: pandas.DataFrame or None
+        if None, creates a new one
+        if one is given, update it with gammalearn reconstructed parameters
+
+    Returns
+    -------
+    `pandas.DataFrame`
+    """
+
+
+    model = load_model(gl_exp_path, gl_exp_name, gl_checkpoint, camera_model_path)
+
+    with open_file(dl1_filename) as file:
+        images = file.root.events.LSTCam_images[:]['image']
+        pulse_times = file.root.events.LSTCam_images[:]['pulse_time']
+
+    data = torch.tensor(np.transpose([images, pulse_times], axes=[1, 0, 2]), dtype=torch.float)
+    prediction = model(data)
+
+    energy = 10 ** prediction[:, 0].detach().numpy()     # TeV
+    core_x = prediction[:, 1].detach().numpy()           # km
+    core_y = prediction[:, 2].detach().numpy()           # km
+    alt = prediction[:, 3].detach().numpy()              # rad
+    az = prediction[:, 4].detach().numpy()               # rad
+
+    if prediction.shape[1] > 5:
+        softmax = torch.nn.Softmax(dim=1)
+        soft = softmax(torch.tensor(prediction[:, 5:]))
+        gammaness = soft[:, 0].detach().numpy()
+    else:
+        gammaness = np.nan * np.ones(len(prediction))
+    is_valid = np.ones(len(prediction), dtype=bool)
+
+    if dl2 is None:
+        print("new dataframe")
+        dl2 = pd.DataFrame(data=np.transpose([energy, core_x, core_y, alt, az, gammaness, is_valid]),
+                           columns=['gl_energy', 'gl_core_x', 'gl_core_y',
+                                    'gl_alt', 'gl_az', 'gl_gammaness', 'gl_is_valid'],
+                           )
+
+    else:
+        dl2['gl_energy'] = pd.Series(energy, index=dl2.index)
+        dl2['gl_core_x'] = pd.Series(core_x, index=dl2.index)
+        dl2['gl_core_y'] = pd.Series(core_y, index=dl2.index)
+        dl2['gl_alt'] = pd.Series(alt, index=dl2.index)
+        dl2['gl_az'] = pd.Series(az, index=dl2.index)
+        dl2['gl_gammaness'] = pd.Series(gammaness, index=dl2.index)
+        dl2['gl_is_valid'] = pd.Series(is_valid, index=dl2.index)
+
     return dl2
 
 

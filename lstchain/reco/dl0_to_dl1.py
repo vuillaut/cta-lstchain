@@ -191,10 +191,19 @@ def r0_to_dl1(
                     dl1_container.width = width.value
                     dl1_container.length = length.value
 
+                    ## to save images, we want to apply gain selection before in the container
+                    waveform = event.r0.tel[telescope_id].waveform
+                    image = event.dl1.tel[telescope_id].image
+                    pulse_time = event.dl1.tel[telescope_id].pulse_time
+                    image, pulse_time = gain_selection(waveform, image, pulse_time, threshold)
+                    event.dl1.tel[telescope_id].image = image
+                    event.dl1.tel[telescope_id].pulse_time = pulse_time
+
                     if width >= 0:
                         # Camera geometry
                         camera = event.inst.subarray.tel[telescope_id].camera
                         writer.write(camera.cam_id, [dl1_container])
+                        writer.write(camera.cam_id + "_images", [event.dl1.tel[telescope_id]])
 
     with HDF5TableWriter(filename=output_filename, group_name="simulation", mode="a") as writer:
         writer.write("run_config", [event.mcheader])

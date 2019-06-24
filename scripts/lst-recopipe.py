@@ -11,17 +11,15 @@ $> python lst-recopipe arg1 arg2 ...
 
 from lstchain.reco import dl0_to_dl1
 from lstchain.reco import dl1_to_dl2
-from lstchain.visualization import plot_dl2
 from lstchain.io import get_dataset_keys
 from sklearn.externals import joblib
 from ctapipe.utils import get_dataset_path
-import matplotlib.pyplot as plt 
 import argparse
 import os
 import pandas as pd 
 from distutils.util import strtobool
 import numpy as np
-import tables
+from tables import open_file
 
 parser = argparse.ArgumentParser(description="Reconstruct events")
 
@@ -35,6 +33,26 @@ parser.add_argument('--pathmodels', '-p', action='store', type=str,
                      dest='path_models',
                      help='Path where to find the trained RF',
                      default='./trained_models')
+
+parser.add_argument('--gl_model_path', '-gmp', action='store', type=str,
+                     dest='gl_model_path',
+                     help='Path where to find the trained CNN',
+                     )
+
+parser.add_argument('--gl_exp_name', '-gen', action='store', type=str,
+                     dest='gl_exp_name',
+                     help='Path where to find the trained CNN',
+                     )
+
+parser.add_argument('--gl_checkpoint', '-gck', action='store', type=str,
+                     dest='gl_checkpoint',
+                     help='Path where to find the trained CNN',
+                     )
+
+parser.add_argument('--gl_camera_model_path', '-gcmp', action='store', type=str,
+                     dest='gl_camera_model_path',
+                     help='Path where to find the trained CNN',
+                     )
 
 parser.add_argument('--storeresults', '-s', action='store', type=lambda x: bool(strtobool(x)),
                     dest='storeresults',
@@ -66,7 +84,20 @@ if __name__ == '__main__':
     #data = pd.read_hdf(args.datafile, key='events/LSTCam')
     intensity_min = np.log10(50)
 
-    data = dl1_to_dl2.filter_events(pd.read_hdf(dl1_file, key='events/LSTCam'), intensity_min=intensity_min)
+    data = pd.read_hdf(dl1_file, key='events/LSTCam')
+    dl2 = dl1_to_dl2.gammalearn_reco(dl1_file,
+                                     args.gl_model_path,
+                                     args.gl_exp_name,
+                                     args.gl_checkpoint,
+                                     args.gl_camera_model_path,
+                                     data,
+                                     )
+
+
+    dl2 = dl1_to_dl2.filter_events(dl2, intensity_min=intensity_min)
+    with open_file(dl1_file) as file:
+        images = file.root.events.LSTCam_images[:]['image']
+        pulse_times = file.root.events.LSTCam_images[:]['pulse_time']
 
     #Load the trained RF for reconstruction:
     fileE = args.path_models + "/reg_energy.sav"
@@ -82,7 +113,8 @@ if __name__ == '__main__':
     features = ['intensity', 'width', 'length', 'x', 'y', 'psi', 'phi', 'wl', 
                 'skewness', 'kurtosis','r', 'intercept', 'time_gradient']
 
-    dl2 = dl1_to_dl2.apply_models(data, features, cls_gh, reg_energy, reg_disp_vector)
+    dl2 = dl1_to_dl2.apply_models(dl2, features, cls_gh, reg_energy, reg_disp_vector)
+
 
     if args.storeresults==True:
         #Store results
@@ -94,8 +126,8 @@ if __name__ == '__main__':
         groups = set([k.split('/')[0] for k in keys])
         groups.remove('events') # we don't want to copy DL1 events
 
-        f1 = tables.open_file(dl1_file)
-        with tables.open_file(outfile, mode='a') as dl2_file:
+        f1 = open_file(dl1_file)
+        with open_file(outfile, mode='a') as dl2_file:
             nodes = {}
             for g in groups:
                 nodes[g] = f1.copy_node('/', name=g, newparent=dl2_file.root, newname=g, recursive=True)
