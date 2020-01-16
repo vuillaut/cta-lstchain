@@ -38,3 +38,10 @@ def test_mc_dl1ab():
     cmd = 'lstchain_mc_dl1ab {} {}'.format(dl1_file, output_file)
     os.system(cmd)
     assert os.path.exists(output_file)
+
+
+@pytest.mark.run(after='test_lstchain_mc_dl1_to_dl2')
+def test_mc_dl2_to_dl3():
+    outdir = os.path.join(output_dir, 'irf_proto')
+    cmd = f'lstchain_mc_dl2_to_dl3_irf -p {dl2_file} -e {dl2_file} -g {dl2_file} -o {outdir}'
+    os.system(cmd)

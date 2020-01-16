@@ -29,7 +29,8 @@ setup(name='lstchain',
       description="DESCRIPTION",  # these should be minimum list of what is needed to run
       packages=find_packages(),
       install_requires=['h5py',
-                        'seaborn'
+                        'seaborn',
+                        'protopipe'
                         ],
       package_data={'lstchain': ['data/lstchain_standard_config.json']},
       tests_require=['pytest', 'pytest-ordering'],
