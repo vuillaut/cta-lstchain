@@ -253,8 +253,6 @@ def main():
                 print('To be handled...')
                 thsq_values.append(0.3)
                 continue
-                # import sys
-                # sys.exit()
 
             psf = np.percentile(data['offset'], radius)
             psf_err = psf / np.sqrt(len(data))
