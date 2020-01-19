@@ -491,7 +491,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    # main(args)
+    main(args)
 
     irf_filename = os.path.join(args.outdir, 'irf_ThSq_r68_Time50.00h/irf.fits.gz')
     fig_output = os.path.join(args.outdir, 'irf_ThSq_r68_Time50.00h/')
