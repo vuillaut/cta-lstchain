@@ -38,7 +38,7 @@ def configuration():
     config['column_definition']['classification_output'] = {}
     config['column_definition']['classification_output']['name'] = 'gammaness'
     config['column_definition']['classification_output']['range'] = [0, 1]
-    config['column_definition']['angular_distance_to_the_src'] = 'ang_sep_src'
+    config['column_definition']['angular_distance_to_the_src'] = 'xi'  # 'ang_sep_src'
 
     config['analysis']['obs_time'] = {
         'value': 0,
