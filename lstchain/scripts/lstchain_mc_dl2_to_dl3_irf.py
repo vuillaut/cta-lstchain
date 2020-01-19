@@ -106,7 +106,7 @@ def read_and_update_dl2(filepath, tel_id=1, filters=['intensity > 300', 'leakage
         data = copy.deepcopy(data.query(filter))
 
     # angles are in degrees in protopipe
-    data['ang_sep_src'] = pd.Series(angular_separation(data.reco_az.values * u.rad,
+    data['xi'] = pd.Series(angular_separation(data.reco_az.values * u.rad,
                                                        data.reco_alt.values * u.rad,
                                                        data.mc_az.values * u.rad,
                                                        data.mc_alt.values * u.rad,
