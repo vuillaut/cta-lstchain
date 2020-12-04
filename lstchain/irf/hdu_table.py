@@ -7,8 +7,10 @@ from lstchain.reco.utils import camera_to_altaz
 import astropy.units as u
 from astropy.table import Table, Column, vstack, QTable
 from astropy.io import fits
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import SkyCoord, AltAz
 from astropy.time import Time
+from ..reco.utils import location
+
 
 __all__ = [
     'create_obs_hdu_index',
@@ -229,24 +231,27 @@ def create_event_list(data, run_number, source_name, mode):
     pointing_alt = data['pointing_alt']
     pointing_az = data['pointing_az']
 
-    coord = camera_to_altaz(pos_x = pos_x, pos_y=pos_y, focal = focal,
-                    pointing_alt = pointing_alt, pointing_az = pointing_az,
-                    obstime = time)
-    coord_pointing = camera_to_altaz(pos_x = 0 * u.m, pos_y=0 * u.m, focal = focal,
-                pointing_alt = pointing_alt[0], pointing_az = pointing_az[0],
-                obstime = time[0])
+    # coord = camera_to_altaz(pos_x = pos_x, pos_y=pos_y, focal = focal,
+    #                 pointing_alt = pointing_alt, pointing_az = pointing_az,
+    #                 obstime = time)
+    # coord_pointing = camera_to_altaz(pos_x = 0 * u.m, pos_y=0 * u.m, focal = focal,
+    #             pointing_alt = pointing_alt[0], pointing_az = pointing_az[0],
+    #             obstime = time[0])
 
-    object_radec=SkyCoord.from_name(source_name)
+    horizon_frame = AltAz(location=location, obstime=time)
+    coord = SkyCoord(alt=data['reco_alt'], az=data['reco_az'], frame=horizon_frame)
+
+    object_radec = SkyCoord.from_name(source_name)
 
     ##########################################################################
     ### Event table
     event_table = QTable(
             {
-                "EVENT_ID" : u.Quantity(data['event_id']),
-                "TIME" : u.Quantity(data['dragon_time']),
-                "RA" : u.Quantity(coord.icrs.ra.to(u.deg)),
-                "DEC" : u.Quantity(coord.icrs.dec.to(u.deg)),
-                "ENERGY" : u.Quantity(data['reco_energy'])
+                "EVENT_ID": u.Quantity(data['event_id']),
+                "TIME": u.Quantity(data['dragon_time']),
+                "RA": u.Quantity(coord.icrs.ra.to(u.deg)),
+                "DEC": u.Quantity(coord.icrs.dec.to(u.deg)),
+                "ENERGY": u.Quantity(data['reco_energy'])
             }
         )
     ##########################################################################
