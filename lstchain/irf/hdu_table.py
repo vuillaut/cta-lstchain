@@ -224,20 +224,6 @@ def create_event_list(data, run_number, source_name, mode):
     date_obs = time[0].to_value('iso', 'date')
     obs_time = t_stop-t_start #All corrections excluded
 
-    #Position parameters
-    focal = 28 * u.m
-    pos_x = data['reco_src_x']
-    pos_y = data['reco_src_y']
-    pointing_alt = data['pointing_alt']
-    pointing_az = data['pointing_az']
-
-    # coord = camera_to_altaz(pos_x = pos_x, pos_y=pos_y, focal = focal,
-    #                 pointing_alt = pointing_alt, pointing_az = pointing_az,
-    #                 obstime = time)
-    # coord_pointing = camera_to_altaz(pos_x = 0 * u.m, pos_y=0 * u.m, focal = focal,
-    #             pointing_alt = pointing_alt[0], pointing_az = pointing_az[0],
-    #             obstime = time[0])
-
     horizon_frame = AltAz(location=location, obstime=time)
     coord = SkyCoord(alt=data['reco_alt'], az=data['reco_az'], frame=horizon_frame)
 
