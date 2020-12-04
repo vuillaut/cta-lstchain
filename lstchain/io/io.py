@@ -1056,8 +1056,6 @@ def read_data_dl2_to_QTable(filename):
         'reco_alt': u.rad,
         'reco_az': u.rad,
         'dragon_time': u.s,
-        'reco_src_x': u.m,
-        'reco_src_y': u.m
     }
 
     data = pd.read_hdf(filename, key = dl2_params_lstcam_key).rename(columns=name_mapping)
