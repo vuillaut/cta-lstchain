@@ -224,7 +224,11 @@ def create_event_list(data, run_number, source_name, mode):
     date_obs = time[0].to_value('iso', 'date')
     obs_time = t_stop-t_start #All corrections excluded
 
+    pointing_alt = data['pointing_alt']
+    pointing_az = data['pointing_az']
+
     horizon_frame = AltAz(location=location, obstime=time)
+    coord_pointing = SkyCoord(alt=pointing_alt, az=pointing_az, frame=horizon_frame)
     coord = SkyCoord(alt=data['reco_alt'], az=data['reco_az'], frame=horizon_frame)
 
     object_radec = SkyCoord.from_name(source_name)
