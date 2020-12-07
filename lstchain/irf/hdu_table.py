@@ -228,7 +228,7 @@ def create_event_list(data, run_number, source_name, mode):
     pointing_az = data['pointing_az']
 
     horizon_frame = AltAz(location=location, obstime=time)
-    frame_first_pointing = AltAz(location=location, obs_time=time[0])
+    frame_first_pointing = AltAz(location=location, obstime=time[0])
     coord_pointing = SkyCoord(alt=pointing_alt[0], az=pointing_az[0], frame=frame_first_pointing)
     coord = SkyCoord(alt=data['reco_alt'], az=data['reco_az'], frame=horizon_frame)
 
