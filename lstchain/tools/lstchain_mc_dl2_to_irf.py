@@ -112,6 +112,8 @@ MAX_THETA_CUT = 0.5 * u.deg
 MIN_ENERGY = 20 * u.GeV
 MAX_ENERGY = 20.05 * u.TeV
 
+N_BIN_PER_DECADE = 5
+
 # source position
 source_alt = 70 * u.deg
 source_az = 180 * u.deg
@@ -131,6 +133,9 @@ particles = {
         "target_spectrum": IRFDOC_ELECTRON_SPECTRUM,
     },
 }
+
+
+
 
 
 def main():
@@ -174,7 +179,7 @@ def main():
     # event display uses much finer bins for the theta cut than
     # for the sensitivity
     theta_bins = add_overflow_bins(
-        create_bins_per_decade(MIN_ENERGY, MAX_ENERGY, 50,)
+        create_bins_per_decade(MIN_ENERGY, MAX_ENERGY, N_BIN_PER_DECADE,)
     )
 
     # theta cut is 68 percent containmente of the gammas
@@ -191,7 +196,7 @@ def main():
     )
 
     # same number of bins per decade than EventDisplay
-    sensitivity_bins = add_overflow_bins(create_bins_per_decade(MIN_ENERGY, MAX_ENERGY, bins_per_decade=5))
+    sensitivity_bins = add_overflow_bins(create_bins_per_decade(MIN_ENERGY, MAX_ENERGY, bins_per_decade=N_BIN_PER_DECADE))
 
     log.info("Optimizing G/H separation cut for best sensitivity")
     gh_cut_efficiencies = np.arange(
@@ -274,10 +279,10 @@ def main():
 
     # binnings for the irfs
     true_energy_bins = add_overflow_bins(
-        create_bins_per_decade(MIN_ENERGY, MAX_ENERGY, 10)
+        create_bins_per_decade(MIN_ENERGY, MAX_ENERGY, N_BIN_PER_DECADE)
     )
     reco_energy_bins = add_overflow_bins(
-        create_bins_per_decade(MIN_ENERGY, MAX_ENERGY, 5)
+        create_bins_per_decade(MIN_ENERGY, MAX_ENERGY, N_BIN_PER_DECADE)
     )
     fov_offset_bins = [0, 0.6] * u.deg
     source_offset_bins = np.arange(0, 1 + 1e-4, 1e-3) * u.deg
