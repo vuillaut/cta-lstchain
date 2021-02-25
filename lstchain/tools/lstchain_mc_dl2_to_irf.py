@@ -1,17 +1,17 @@
 """
 Example for using pyirf to calculate IRFS and sensitivity from EventDisplay DL2 fits
 files produced from the root output by this script:
-
 https://github.com/Eventdisplay/Converters/blob/master/DL2/generate_DL2_file.py
 """
 import logging
 import operator
 
+import os
 import numpy as np
 from astropy import table
 import astropy.units as u
 from astropy.io import fits
-
+from astropy.io.misc.hdf5 import write_table_hdf5
 
 from pyirf.binning import (
     create_bins_per_decade,
@@ -22,6 +22,7 @@ from pyirf.cuts import calculate_percentile_cut, evaluate_binned_cut
 from pyirf.sensitivity import calculate_sensitivity, estimate_background
 from pyirf.utils import calculate_theta, calculate_source_fov_offset
 from pyirf.benchmarks import energy_bias_resolution, angular_resolution
+from pyirf.benchmarks.energy_bias_resolution import energy_resolution_absolute_68
 
 from pyirf.spectral import (
     calculate_event_weights,
@@ -48,11 +49,13 @@ from pyirf.io import (
 )
 
 from lstchain.io.io import read_dl2_to_pyirf
+from lstchain.reco.utils import filter_events
 
 log = logging.getLogger("lstchain MC DL2 to IRF")
 
 import argparse
 from pathlib import Path
+
 
 parser = argparse.ArgumentParser(description="MC DL2 to IRF")
 
@@ -75,10 +78,10 @@ parser.add_argument('--electron-dl2', '-e',
                     help='Path to the dl2 electron file',
                     )
 
-parser.add_argument('--outfile', '-o', action='store', type=Path,
-                    dest='outfile',
+parser.add_argument('--outdir', '-o', action='store', type=Path,
+                    dest='outdir',
                     help='Path where to save IRF FITS file',
-                    default='irf.fits.gz'
+                    default='.'
                     )
 
 # Optional arguments
@@ -109,7 +112,7 @@ INITIAL_GH_CUT_EFFICENCY = 0.4
 MIN_THETA_CUT = 0.1 * u.deg
 MAX_THETA_CUT = 0.5 * u.deg
 
-MIN_ENERGY = 20 * u.GeV
+MIN_ENERGY = 20.0 * u.GeV
 MAX_ENERGY = 20.05 * u.TeV
 
 N_BIN_PER_DECADE = 5
@@ -135,6 +138,10 @@ particles = {
 }
 
 
+# filters = {
+#     'intensity': [50, np.inf],
+#     'leakage_intensity_width_2': [0, 0.2],
+# }
 
 
 
@@ -145,6 +152,8 @@ def main():
     for particle_type, p in particles.items():
         log.info(f"Simulated {particle_type.title()} Events:")
         p["events"], p["simulation_info"] = read_dl2_to_pyirf(p["file"])
+        # p['events'] = filter_events(p['events'], filters)
+
         print('=====', particle_type, '=====')
         # p["events"]["particle_type"] = particle_type
 
@@ -197,7 +206,7 @@ def main():
 
     # same number of bins per decade than EventDisplay
     sensitivity_bins = add_overflow_bins(create_bins_per_decade(MIN_ENERGY, MAX_ENERGY, bins_per_decade=N_BIN_PER_DECADE))
-
+ 
     log.info("Optimizing G/H separation cut for best sensitivity")
     gh_cut_efficiencies = np.arange(
         GH_CUT_EFFICIENCY_STEP,
@@ -284,6 +293,7 @@ def main():
     reco_energy_bins = add_overflow_bins(
         create_bins_per_decade(MIN_ENERGY, MAX_ENERGY, N_BIN_PER_DECADE)
     )
+
     fov_offset_bins = [0, 0.6] * u.deg
     source_offset_bins = np.arange(0, 1 + 1e-4, 1e-3) * u.deg
     energy_migration_bins = np.geomspace(0.2, 5, 200)
@@ -320,6 +330,7 @@ def main():
 
     bias_resolution = energy_bias_resolution(
         gammas[gammas["selected"]], true_energy_bins,
+        resolution_function=energy_resolution_absolute_68,
     )
     ang_res = angular_resolution(gammas[gammas["selected_gh"]], true_energy_bins,)
     psf = psf_table(
@@ -351,7 +362,20 @@ def main():
     hdus.append(fits.BinTableHDU(bias_resolution, name="ENERGY_BIAS_RESOLUTION"))
 
     log.info('Writing outputfile')
-    fits.HDUList(hdus).writeto(args.outfile, overwrite=True)
+    outfile = os.path.join(args.outdir, 'irf.fits.gz')
+    fits.HDUList(hdus).writeto(outfile, overwrite=True)
+
+    log.info('Writing DL2 files')
+    write_table_hdf5(gammas,
+    os.path.join(args.outdir,'gammas.h5'),
+    path='dl2_data',
+    overwrite=True,
+    )
+    write_table_hdf5(background,
+     os.path.join(args.outdir, 'background.h5'),
+     path='dl2_data',
+     overwrite=True,
+     )
 
 
 if __name__ == "__main__":
